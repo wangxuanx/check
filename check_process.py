@@ -87,6 +87,21 @@ def clear_time(check_time):
     return sorted(by_hour.values())
 
 
+def find_data_start(sheet, max_scan=10):
+    """跳过流水文件顶部的表头行（如 '姓名/日期/时间'）。
+
+    逐行检查前几行：只要该行出现 "姓名"、"日期"、"时间" 这类表头字样，
+    就视为表头跳过；返回真正数据起始行的下标。没有表头时返回 0。
+    """
+    for r in range(min(max_scan, sheet.nrows)):
+        row = sheet.row_values(r)
+        cells = [str(c).strip() for c in row]
+        if '姓名' in cells or '日期' in cells or '时间' in cells:
+            continue
+        return r
+    return 0
+
+
 def process(input_path, file_path, days, out_file, log=print):
     """核心处理流程，供 CLI 与 GUI 共用。返回 True 表示成功。"""
     excel_in = xlrd.open_workbook_xls(input_path)
@@ -97,18 +112,20 @@ def process(input_path, file_path, days, out_file, log=print):
     write_out = xlwt.Workbook()
     write_sheet = write_out.add_sheet('考勤', cell_overwrite_ok=True)
 
-    cols_in: list = sheet_in.col_values(0)  # 第一列：姓名
-    name_list = list(set(cols_in))
-    log(f'总签到人数: {name_list}')
+    data_start = find_data_start(sheet_in)
+    if data_start > 0:
+        log(f'检测到流水顶部有 {data_start} 行表头，已自动跳过')
 
+    data_rows = sheet_in.nrows - data_start
     days = int(days)
-    n = int(sheet_in.nrows / days)  # 打卡总人数
+    n = int(data_rows / days)  # 打卡总人数
     log(f'共 {days} 天，{n} 人，开始处理……')
 
     for i in range(0, n):
-        user_name = sheet_in.row_values(i * days)[0]
+        base = data_start + i * days
+        user_name = sheet_in.row_values(base)[0]
         for j in range(0, days):
-            row_idx = i * days + j
+            row_idx = base + j
             if row_idx >= sheet_in.nrows:
                 break
             user_time = sheet_in.row_values(row_idx)[2]
