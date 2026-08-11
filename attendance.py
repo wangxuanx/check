@@ -105,21 +105,18 @@ def main() -> None:
     if args.command == "checkin":
         system.check_in(args.employee_id, args.date, args.time)
         system.save(args.db)
-        print(f"{args.employee_id} checked in at {args.time} on {args.date}")
+        print("Check-in recorded successfully")
         return
 
     if args.command == "checkout":
         system.check_out(args.employee_id, args.date, args.time)
         system.save(args.db)
-        print(f"{args.employee_id} checked out at {args.time} on {args.date}")
+        print("Check-out recorded successfully")
         return
 
-    for row in system.report_by_date(args.date):
-        print(
-            f"employee={row.employee_id} date={row.work_date} "
-            f"in={row.check_in_time or '-'} out={row.check_out_time or '-'} "
-            f"minutes={row.work_minutes()}"
-        )
+    rows = system.report_by_date(args.date)
+    total_minutes = sum(row.work_minutes() for row in rows)
+    print(f"records={len(rows)} total_minutes={total_minutes}")
 
 
 if __name__ == "__main__":
